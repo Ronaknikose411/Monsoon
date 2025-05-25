@@ -1,26 +1,32 @@
-# Use a lightweight Node.js image to compile your source
+
+# ──────────────── Stage 1: build ────────────────
 FROM node:23-alpine AS builder
-
-
-# Set /app as the working directory for subsequent commands
 WORKDIR /app
 
 
-# Copy package manifests first (best practice for caching)
+# only copy package manifests so npm ci caches
 COPY package.json package-lock.json ./
-
-
-# Install all dependencies exactly as specified in package-lock.json
 RUN npm ci
 
 
-# Copy the rest of your source code into the container
+# copy source & build
 COPY . .
+RUN npm run build   # → outputs to /app/dist
 
 
-# Run the build script (Vite will output production files to /app/dist)
-RUN npm run build
+# ──────────────── Stage 2: serve ────────────────
+FROM nginx:stable-alpine
+# remove default static content
+RUN rm -rf /usr/share/nginx/html/*
 
 
-# Tell Docker the container listens on port 80 at runtime
+# copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+
+# expose port 80
 EXPOSE 80
+
+
+# run nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]
