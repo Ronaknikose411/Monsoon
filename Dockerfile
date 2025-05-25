@@ -1,32 +1,26 @@
-
 # ──────────────── Stage 1: build ────────────────
 FROM node:23-alpine AS builder
 WORKDIR /app
 
-
-# only copy package manifests so npm ci caches
+# Only copy package manifests first for caching
 COPY package.json package-lock.json ./
 RUN npm ci
 
-
-# copy source & build
+# Copy the rest of the source and build it
 COPY . .
-RUN npm run build   # → outputs to /app/dist
-
+RUN npm run build   # outputs to /app/dist
 
 # ──────────────── Stage 2: serve ────────────────
 FROM nginx:stable-alpine
-# remove default static content
+
+# Clean default nginx static content
 RUN rm -rf /usr/share/nginx/html/*
 
-
-# copy built files
+# Copy built React app from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-
-# expose port 80
+# Expose container port
 EXPOSE 80
 
-
-# run nginx in foreground
+# Run nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]
