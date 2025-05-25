@@ -85,6 +85,7 @@ jobs:
             rm -rf react-app
             mkdir react-app
             cd ~/react-app
+            git init
             git clone https://github.com/Ronaknikose411/Monsoon.git
             git fetch origin main
             git reset --hard origin/main
