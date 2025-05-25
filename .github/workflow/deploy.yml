@@ -1,0 +1,114 @@
+name: CI/CD for React App
+
+
+# 1) Trigger this workflow on every push to "main"
+on:
+    push:
+        branches: [main]
+
+
+jobs:
+    deploy:
+        # 2) Run all steps on a fresh Ubuntu VM hosted by GitHub Actions
+        runs-on: ubuntu-latest
+
+
+        steps:
+            # 3) Step: Check out your repository code so we can deploy it
+            - name: Checkout
+              uses: actions/checkout@v3
+
+
+            # 4) Step: SSH into your EC2 instance and run provisioning + deploy scripts
+            - name: React app EC2 instance
+              uses: appleboy/ssh-action@v0.1.6
+              with:
+                  # 4a) Which server to connect to (stored as a secret)
+                  host: ${{ secrets.EC2_HOST }}
+
+
+                  # 4b) Which user on that server
+                  username: ${{ secrets.EC2_USERNAME }}
+
+
+                  # 4c) SSH private key (stored as a secret, exported from PuTTYgen or OpenSSH)
+                  key: ${{ secrets.EC2_SSH_KEY }}
+
+
+                  # 4d) SSH port (standard is 22)
+                  port: ${{ secrets.EC2_PORT }}
+
+
+                  # 5) The actual shell script to run over SSH
+                  script: |
+                      set -e
+
+
+                      sudo rm -f /etc/nginx/sites-enabled/default
+
+
+                      sudo tee /etc/nginx/sites-available/react-app.conf > /dev/null << 'EOF'
+                      upstream react_app {
+                          server 127.0.0.1:3000;
+                      }
+
+
+                      server {
+                          # Listen on port 80 as the default server
+                          listen 80 default_server;
+                          listen [::]:80 default_server;
+                          server_name _;
+
+
+                          # Proxy all requests to the React container on localhost:3000
+                          location / {
+                              proxy_http_version 1.1;
+                          }
+                      }
+                      EOF
+
+
+                      # Enable the new site by symlinking into sites-enabled
+                      sudo ln -sfn /etc/nginx/sites-available/react-app.conf /etc/nginx/sites-enabled/react-app.conf
+
+
+                      # Test Nginx config syntax and restart to apply changes
+                      sudo nginx -t
+                      sudo systemctl restart nginx
+
+
+                      # ---------------------------------------------------
+                      # C) Pull latest code, build Docker image, and run it
+                      # ---------------------------------------------------
+                      rm -rf react-app
+                      mkdir react-app
+                      cd ~/react-app
+                      git clone https://github.com/Ronaknikose411/Monsoon.git .
+                      git fetch origin main
+
+
+                      # Build the multi-stage Docker image defined in your Dockerfile
+                      sudo docker build -t react-app:latest .
+
+
+                      # Run the new container:
+                      # - Name it "react-app"
+                      # - Map host port 3000 → container port 80
+                      sudo docker run -d \
+                        --name react-app \
+                        -p 3000:80 \
+                        react-app:latest
+
+
+
+
+
+
+
+
+
+
+
+
+
+
