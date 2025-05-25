@@ -80,13 +80,14 @@ jobs:
             sudo systemctl restart nginx
 
             # ---------------------------------------------------
-            # C) Pull latest code, build Docker image, and run it
+            # C) Pull latest code, build Docker image, and run itsdds
             # ---------------------------------------------------
             rm -rf react-app
             mkdir react-app
             cd ~/react-app
             git init
-            git clone https://github.com/Ronaknikose411/Monsoon.git .
+            git clone https://github.com/Ronaknikose411/Monsoon.git
+            cd Monsoon
             git fetch origin main
             git reset --hard origin/main
 
